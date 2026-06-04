@@ -29,9 +29,13 @@ const CONFIG = {
     // Skeleton count for loading
     skeletonCount: 8,
     
+    // Supported languages (first entry is the default fallback)
+    languages: ['en', 'tr'],
+    
     // LocalStorage keys
     storageKeys: {
-        favorites: 'lumina_gallery_favorites'
+        favorites: 'lumina_gallery_favorites',
+        language: 'lumina_gallery_language'
     }
 };
 
@@ -52,7 +56,9 @@ const state = {
     slideshowTimer: null,
     slideshowProgressTimer: null,
     hasMoreImages: true,
-    isFullscreen: false
+    isFullscreen: false,
+    currentLanguage: 'en',
+    focusTrapHandler: null
 };
 
 // ============================================
@@ -101,7 +107,11 @@ const elements = {
     
     // Mobile Menu
     mobileMenuToggle: document.getElementById('mobileMenuToggle'),
-    mobileMenuOverlay: document.getElementById('mobileMenuOverlay')
+    mobileMenuOverlay: document.getElementById('mobileMenuOverlay'),
+    
+    // Language
+    langToggle: document.getElementById('langToggle'),
+    langToggleLabel: document.getElementById('langToggleLabel')
 };
 
 // ============================================
@@ -305,6 +315,107 @@ function updateFavoritesUI() {
 }
 
 // ============================================
+// Internationalization (i18n) Functions
+// ============================================
+
+/**
+ * Resolves the initial language from storage or the browser preference
+ * @returns {string} Language code ('en' or 'tr')
+ */
+function resolveInitialLanguage() {
+    try {
+        const stored = localStorage.getItem(CONFIG.storageKeys.language);
+        if (stored && CONFIG.languages.includes(stored)) {
+            return stored;
+        }
+    } catch (error) {
+        console.warn('Error reading language preference:', error);
+    }
+    
+    const browserLang = (navigator.language || 'en').toLowerCase();
+    return browserLang.startsWith('tr') ? 'tr' : CONFIG.languages[0];
+}
+
+/**
+ * Reads the localized value of an element for the given language,
+ * falling back to the default language when a translation is missing
+ * @param {HTMLElement} element - Element carrying data_* translations
+ * @param {string} lang - Target language code
+ * @returns {string|null} Localized text or null when unavailable
+ */
+function getTranslation(element, lang) {
+    return element.getAttribute(`data_${lang}`)
+        ?? element.getAttribute(`data_${CONFIG.languages[0]}`);
+}
+
+/**
+ * Applies translations to every element carrying data_* attributes.
+ * Preserves child elements (e.g. inline SVG icons) by only updating
+ * the relevant text node, the placeholder or the accessible label.
+ * @param {string} lang - Language code to apply
+ */
+function applyTranslations(lang) {
+    const translatableElements = document.querySelectorAll('[data_en], [data_tr]');
+    
+    translatableElements.forEach(element => {
+        const value = getTranslation(element, lang);
+        if (value === null) return;
+        
+        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+            element.placeholder = value;
+            return;
+        }
+        
+        if (element.children.length > 0) {
+            // Element mixes icons with text: update only the visible text node
+            const textNode = [...element.childNodes]
+                .reverse()
+                .find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            
+            if (textNode) {
+                textNode.textContent = ` ${value}`;
+            } else {
+                // Icon-only control: expose the label to assistive technology
+                element.setAttribute('aria-label', value);
+            }
+            return;
+        }
+        
+        element.textContent = value;
+    });
+}
+
+/**
+ * Sets the active language, updates the UI and persists the choice
+ * @param {string} lang - Language code to activate
+ */
+function setLanguage(lang) {
+    const nextLang = CONFIG.languages.includes(lang) ? lang : CONFIG.languages[0];
+    state.currentLanguage = nextLang;
+    
+    document.documentElement.lang = nextLang;
+    applyTranslations(nextLang);
+    
+    if (elements.langToggleLabel) {
+        // Show the language the user can switch to next
+        elements.langToggleLabel.textContent = nextLang === 'tr' ? 'EN' : 'TR';
+    }
+    
+    try {
+        localStorage.setItem(CONFIG.storageKeys.language, nextLang);
+    } catch (error) {
+        console.warn('Error saving language preference:', error);
+    }
+}
+
+/**
+ * Toggles between the supported languages
+ */
+function toggleLanguage() {
+    setLanguage(state.currentLanguage === 'tr' ? 'en' : 'tr');
+}
+
+// ============================================
 // API Functions
 // ============================================
 
@@ -495,19 +606,28 @@ function createGalleryItemHTML(image, index) {
     const rowSpan = Math.ceil((1 / image.aspectRatio) * 25) + 2;
     const isFav = isFavorite(image.id);
     
+    // Escape every value that is interpolated into markup to prevent XSS
+    // and broken attributes when data comes from the Unsplash API
+    const safeId = escapeHTML(image.id);
+    const safeTitle = escapeHTML(image.title);
+    const safeAuthor = escapeHTML(image.author);
+    const safeAlt = escapeHTML(image.alt);
+    const safeSmall = escapeHTML(image.urls.small);
+    const safeRegular = escapeHTML(image.urls.regular);
+    
     return `
         <article 
             class="gallery-item" 
             data-index="${index}"
-            data-id="${image.id}"
+            data-id="${safeId}"
             tabindex="0"
             role="button"
-            aria-label="${image.title} - ${image.author}"
+            aria-label="${safeTitle} - ${safeAuthor}"
             style="grid-row: span ${rowSpan};"
         >
             <button 
                 class="gallery-item-favorite ${isFav ? 'is-favorite' : ''}" 
-                data-image-id="${image.id}"
+                data-image-id="${safeId}"
                 aria-label="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
             >
                 <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="${isFav ? 'currentColor' : 'none'}">
@@ -516,16 +636,16 @@ function createGalleryItemHTML(image, index) {
             </button>
             <img 
                 class="gallery-item-image"
-                src="${image.urls.small}"
-                srcset="${image.urls.small} 400w, ${image.urls.regular} 1080w"
+                src="${safeSmall}"
+                srcset="${safeSmall} 400w, ${safeRegular} 1080w"
                 sizes="(max-width: 480px) 50vw, (max-width: 900px) 33vw, 25vw"
-                alt="${image.alt}"
+                alt="${safeAlt}"
                 loading="lazy"
                 decoding="async"
             >
             <div class="gallery-item-info">
-                <h3 class="gallery-item-title">${escapeHTML(image.title)}</h3>
-                <p class="gallery-item-author">${escapeHTML(image.author)}</p>
+                <h3 class="gallery-item-title">${safeTitle}</h3>
+                <p class="gallery-item-author">${safeAuthor}</p>
             </div>
         </article>
     `;
@@ -656,11 +776,18 @@ function closeLightbox() {
     state.isLightboxOpen = false;
     stopSlideshow();
     exitFullscreen();
+    releaseFocusTrap();
     
     elements.lightbox.classList.remove('active');
     document.body.classList.remove('lightbox-open');
     
-    const activeItem = elements.galleryGrid.querySelector(`[data-index="${state.currentImageIndex}"]`);
+    // Restore focus to the originating gallery item, matched by image id
+    // so navigation (arrows / Home / End / slideshow) cannot misalign it
+    const currentImage = state.filteredImages[state.currentImageIndex];
+    const activeItem = currentImage
+        ? elements.galleryGrid.querySelector(`[data-id="${currentImage.id}"]`)
+        : null;
+    
     if (activeItem) {
         activeItem.focus();
     }
@@ -1091,30 +1218,50 @@ async function loadMoreImages() {
 // ============================================
 
 /**
- * Traps focus inside an element
+ * Traps keyboard focus inside an element.
+ * The handler reference is stored on the state so it can later be
+ * removed by releaseFocusTrap(), preventing listener accumulation.
  * @param {HTMLElement} element - Element to trap focus in
  */
 function trapFocus(element) {
-    const focusableElements = element.querySelectorAll(
-        'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
+    // Remove any previously attached trap before adding a new one
+    releaseFocusTrap();
     
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-    
-    function handleTab(e) {
-        if (e.key !== 'Tab') return;
+    function handleTab(event) {
+        if (event.key !== 'Tab') return;
         
-        if (e.shiftKey && document.activeElement === firstElement) {
-            e.preventDefault();
+        // Query focusable elements lazily so dynamic controls are included
+        const focusableElements = [...element.querySelectorAll(
+            'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )].filter(el => el.offsetParent !== null);
+        
+        if (focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (event.shiftKey && document.activeElement === firstElement) {
+            event.preventDefault();
             lastElement.focus();
-        } else if (!e.shiftKey && document.activeElement === lastElement) {
-            e.preventDefault();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+            event.preventDefault();
             firstElement.focus();
         }
     }
     
+    state.focusTrapHandler = { element, handler: handleTab };
     element.addEventListener('keydown', handleTab);
+}
+
+/**
+ * Removes the active focus trap listener, if any
+ */
+function releaseFocusTrap() {
+    if (state.focusTrapHandler) {
+        const { element, handler } = state.focusTrapHandler;
+        element.removeEventListener('keydown', handler);
+        state.focusTrapHandler = null;
+    }
 }
 
 // ============================================
@@ -1122,14 +1269,18 @@ function trapFocus(element) {
 // ============================================
 
 /**
- * Escapes HTML to prevent XSS
+ * Escapes a value so it is safe inside both HTML text and
+ * double/single quoted attributes (prevents XSS and attribute breakout)
  * @param {string} text - Text to escape
  * @returns {string} Escaped text
  */
 function escapeHTML(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 /**
@@ -1216,6 +1367,11 @@ function setupEventListeners() {
     // Mobile menu overlay click to close
     if (elements.mobileMenuOverlay) {
         elements.mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+    }
+    
+    // Language toggle
+    if (elements.langToggle) {
+        elements.langToggle.addEventListener('click', toggleLanguage);
     }
     
     // Category navigation
@@ -1395,6 +1551,9 @@ function setupTouchSupport() {
  * Initializes the gallery application
  */
 async function init() {
+    // Apply language before rendering any UI text
+    setLanguage(resolveInitialLanguage());
+    
     // Load favorites from localStorage
     state.favorites = loadFavorites();
     updateFavoritesUI();

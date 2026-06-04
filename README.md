@@ -1,6 +1,6 @@
-# Lumina Gallery
+# 📸 Lumina Gallery
 
-A modern, responsive, and accessible photo gallery application with stunning UI. Browse beautiful photographs with smooth animations, lightbox viewing, and intuitive navigation.
+A modern, responsive, and accessible photo gallery application with stunning UI. Browse beautiful photographs with smooth animations, lightbox viewing, slideshow, search, favorites, and a bilingual (English/Turkish) interface.
 
 [![Created by Serkanby](https://img.shields.io/badge/Created%20by-Serkanby-blue?style=flat-square)](https://serkanbayraktar.com/)
 [![GitHub](https://img.shields.io/badge/GitHub-Serkanbyx-181717?style=flat-square&logo=github)](https://github.com/Serkanbyx)
@@ -9,12 +9,20 @@ A modern, responsive, and accessible photo gallery application with stunning UI.
 
 - **Masonry Grid Layout**: Beautiful CSS Grid-based masonry layout that automatically adjusts to image aspect ratios
 - **Lightbox Modal**: Full-screen image viewing with smooth transitions and backdrop blur effects
-- **Keyboard Navigation**: Complete keyboard support including Arrow keys, Escape, Home, and End
+- **Slideshow**: Auto-play mode with adjustable speed (2s–8s) and a live progress bar
+- **Fullscreen Mode**: View any photo using the Fullscreen API (with vendor fallbacks)
+- **Image Download**: Download the original photo as a blob, with a new-tab fallback
+- **Favorites**: Save favorites that persist across sessions via `localStorage`
+- **Search**: Debounced search across title, author and description
+- **Infinite Scroll**: Seamless pagination powered by `IntersectionObserver`
+- **Skeleton Loading**: Animated placeholders while images are fetched
+- **Bilingual UI (i18n)**: One-click English/Turkish switch, remembered across visits
+- **Keyboard Navigation**: Complete keyboard support including Arrow keys, Escape, Home, End, Space (slideshow), F (fullscreen) and D (download)
 - **Touch/Swipe Support**: Mobile-friendly swipe gestures for navigating between images
 - **Lazy Loading**: Optimized performance with native lazy loading (`loading="lazy"`)
 - **Responsive Images**: Multiple image sizes with `srcset` for optimal loading on all devices
-- **Category Filtering**: Filter images by categories (Nature, Architecture, People)
-- **Accessibility (a11y)**: Full ARIA support, focus management, and screen reader compatibility
+- **Category Filtering**: Filter images by categories (Nature, Architecture, People) plus a Favorites view
+- **Accessibility (a11y)**: Full ARIA support, focus trap, focus management, reduced-motion support and screen reader compatibility
 - **Dark Theme**: Elegant dark moody theme with gold accents
 
 ## Live Demo
@@ -50,8 +58,8 @@ Fully responsive design that adapts to all screen sizes with touch-friendly inte
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Serkanbyx/lumina-gallery.git
-   cd lumina-gallery
+   git clone https://github.com/Serkanbyx/photo-gallery.git
+   cd photo-gallery
    ```
 
 2. **Open in browser**
@@ -97,12 +105,15 @@ To use dynamic images from Unsplash:
 
 ## Usage
 
-1. **Browse Gallery**: Scroll through the image grid to explore photographs
+1. **Browse Gallery**: Scroll through the image grid to explore photographs (more load automatically as you scroll)
 2. **Filter by Category**: Click category buttons (All, Nature, Architecture, People) to filter images
-3. **View Full Size**: Click any image to open the lightbox modal
-4. **Navigate Images**: Use arrow buttons or keyboard arrows to move between images
-5. **Close Lightbox**: Click the X button, press Escape, or click outside the image
-6. **Load More**: Click "Load More" button to fetch additional images
+3. **Search**: Type in the search box to filter by title, author or description
+4. **Favorites**: Click the heart on any photo to save it; open the Favorites view to see them
+5. **View Full Size**: Click any image to open the lightbox modal
+6. **Navigate Images**: Use arrow buttons, keyboard arrows, or swipe on touch devices
+7. **Slideshow / Fullscreen / Download**: Use the lightbox controls (or the `Space`, `F`, `D` keys)
+8. **Switch Language**: Use the EN/TR toggle in the header to change the interface language
+9. **Close Lightbox**: Click the X button, press Escape, or click outside the image
 
 ## How It Works?
 
@@ -141,15 +152,18 @@ Images are served with multiple sizes using `srcset`:
 
 Full keyboard support for accessibility:
 
-| Key               | Action                    |
-| ----------------- | ------------------------- |
-| `Enter` / `Space` | Open selected image       |
-| `Escape`          | Close lightbox            |
-| `Arrow Left`      | Previous image            |
-| `Arrow Right`     | Next image                |
-| `Home`            | First image               |
-| `End`             | Last image                |
-| `Tab`             | Navigate between elements |
+| Key                       | Action                                |
+| ------------------------- | ------------------------------------- |
+| `Enter` / `Space`         | Open selected image (from the grid)   |
+| `Escape`                  | Exit fullscreen, otherwise close      |
+| `Arrow Left`              | Previous image                        |
+| `Arrow Right`             | Next image                            |
+| `Home`                    | First image                           |
+| `End`                     | Last image                            |
+| `Space`                   | Toggle slideshow (in lightbox)        |
+| `F`                       | Toggle fullscreen                     |
+| `D`                       | Download current image                |
+| `Tab`                     | Navigate between elements (trapped)   |
 
 ## Customization
 
@@ -225,33 +239,46 @@ const fallbackImages = [
 - ✅ Full-screen lightbox with blur overlay
 - ✅ Keyboard navigation support
 - ✅ Touch/swipe gestures for mobile
-- ✅ Category filtering
+- ✅ Category filtering + Favorites view
 - ✅ Lazy loading images
 - ✅ Responsive srcset implementation
 - ✅ Dark theme with elegant typography
 - ✅ ARIA accessibility support
 - ✅ Smooth CSS animations
 - ✅ Focus trap in lightbox modal
+- ✅ Image download functionality
+- ✅ Infinite scroll pagination
+- ✅ Favorites/bookmarks with localStorage
+- ✅ Search functionality
+- ✅ Slideshow with adjustable speed
+- ✅ Fullscreen mode
+- ✅ Skeleton loading placeholders
+- ✅ Bilingual UI (English / Turkish)
 
 ### Future Features
 
-- [ ] Image download functionality
 - [ ] Social sharing buttons
-- [ ] Infinite scroll pagination
-- [ ] Image zoom on lightbox
-- [ ] Favorites/bookmarks with localStorage
-- [ ] Search functionality
-- [ ] Multiple theme options (light/dark)
+- [ ] Image zoom / pan inside the lightbox
+- [ ] Light theme option
+- [ ] Additional languages
 
 ## Project Structure
 
 ```
-lumina-gallery/
+photo-gallery/
 ├── index.html          # Main HTML file
 ├── css/
-│   └── styles.css      # All styles (800+ lines)
+│   └── styles.css      # All styles (1600+ lines)
 ├── js/
-│   └── app.js          # Application logic (820+ lines)
+│   └── app.js          # Application logic (1500+ lines)
+├── docs/
+│   └── build-guide.md  # Step-by-step build playbook
+├── .github/            # Community health files
+│   ├── ISSUE_TEMPLATE/ # Bug report & feature request templates
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   ├── CODE_OF_CONDUCT.md
+│   ├── CONTRIBUTING.md
+│   └── SECURITY.md
 ├── README.md           # Documentation
 ├── .gitignore          # Git ignore rules
 └── LICENSE             # MIT License
@@ -264,7 +291,7 @@ Contributions are welcome! Please follow these steps:
 1. **Fork the repository**
 
    ```bash
-   git fork https://github.com/Serkanbyx/lumina-gallery.git
+   git fork https://github.com/Serkanbyx/photo-gallery.git
    ```
 
 2. **Create a feature branch**
@@ -318,8 +345,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-- **Found a bug?** [Open an issue](https://github.com/Serkanbyx/lumina-gallery/issues)
-- **Have a suggestion?** [Start a discussion](https://github.com/Serkanbyx/lumina-gallery/discussions)
+- **Found a bug?** [Open an issue](https://github.com/Serkanbyx/photo-gallery/issues)
+- **Have a suggestion?** [Start a discussion](https://github.com/Serkanbyx/photo-gallery/discussions)
 - **Email**: [serkanbyx1@gmail.com](mailto:serkanbyx1@gmail.com)
 - **Website**: [serkanbayraktar.com](https://serkanbayraktar.com/)
 
