@@ -319,7 +319,9 @@ function updateFavoritesUI() {
 // ============================================
 
 /**
- * Resolves the initial language from storage or the browser preference
+ * Resolves the initial language. English is always the default;
+ * Turkish is only used when the user has explicitly selected it before
+ * (persisted in localStorage). The browser locale is intentionally ignored.
  * @returns {string} Language code ('en' or 'tr')
  */
 function resolveInitialLanguage() {
@@ -332,8 +334,8 @@ function resolveInitialLanguage() {
         console.warn('Error reading language preference:', error);
     }
     
-    const browserLang = (navigator.language || 'en').toLowerCase();
-    return browserLang.startsWith('tr') ? 'tr' : CONFIG.languages[0];
+    // Default to English regardless of the browser's locale
+    return CONFIG.languages[0];
 }
 
 /**
